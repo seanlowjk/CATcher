@@ -1,6 +1,6 @@
 import { of } from 'rxjs';
 import { SessionData } from '../../src/app/core/models/session.model';
-import { Phase, PhaseService } from '../../src/app/core/services/phase.service';
+import { Phase, PhaseService, SESSION_AVALIABILITY_FIX_FAILED } from '../../src/app/core/services/phase.service';
 
 const moderationPhaseSettingsFile: {} = {
   'openPhases': [Phase.phaseModeration],
@@ -22,12 +22,15 @@ const multipleOpenPhasesSettingsFile: {} = {
 
 let phaseService: PhaseService;
 let githubService: any;
+let labelService: any;
 
 describe('PhaseService', () => {
   beforeEach(() => {
     githubService = jasmine.createSpyObj('GithubService',
       ['fetchSettingsFile', 'storePhaseDetails']);
-    phaseService = new PhaseService(null, githubService, null, null, null);
+    labelService = jasmine.createSpyObj('GithubService',
+      ['synchronizeRemoteLabels']);
+    phaseService = new PhaseService(null, githubService, labelService, null, null);
   });
 
   describe('.storeSessionData()', () => {
@@ -75,6 +78,24 @@ describe('PhaseService', () => {
       phaseService.currentPhase = Phase.phaseBugReporting;
       phaseService.reset();
       expect(phaseService.currentPhase).toBeNull();
+    });
+  });
+
+  describe('.syncLabels()', () => {
+    it('should throw an error given an Observable of false', () => {
+      of(false)
+        .pipe(phaseService.syncLabels())
+        .subscribe({
+          error: (err) =>
+            expect(err).toEqual(new Error(SESSION_AVALIABILITY_FIX_FAILED)),
+        });
+    });
+
+    it('should return the result of labelService.synchronizeRemoteLabels() given an Observable of true', () => {
+      labelService.synchronizeRemoteLabels.and.callFake(() => []);
+      of(true)
+        .pipe(phaseService.syncLabels())
+        .subscribe((result: {}[]) => expect(result).toEqual([]));
     });
   });
 });

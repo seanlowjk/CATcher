@@ -157,12 +157,19 @@ export class PhaseService {
     return dialogRef.afterClosed();
   }
 
+  syncLabels(): UnaryFunction<Observable<boolean>, Observable<any>> {
+    return pipe(
+      throwIfFalse((isSessionCreated: boolean) => isSessionCreated,
+        () => new Error(SESSION_AVALIABILITY_FIX_FAILED)),
+      map(() => this.labelService.synchronizeRemoteLabels())
+    );
+  }
 
   /**
    * Ensures that the necessary data for the current session is available
    * and synchronized with the remote server.
    */
-  sessionSetup(): Observable<any> {
+  sessionSetup(): Observable<{any}> {
     // Permission Caching Mechanism to prevent repeating permission request.
     let isSessionFixPermissionGranted = false;
     console.log(1234567890);
@@ -212,14 +219,6 @@ export class PhaseService {
       }),
       this.syncLabels(),
       retry(1)  // Retry once, to handle edge case where GitHub API cannot immediately confirm existence of the newly created repo.
-    );
-  }
-
-  public syncLabels(): UnaryFunction<Observable<boolean>, Observable<any>> {
-    return pipe(
-      throwIfFalse((isSessionCreated: boolean) => isSessionCreated,
-        () => new Error(SESSION_AVALIABILITY_FIX_FAILED)),
-      map(() => this.labelService.synchronizeRemoteLabels())
     );
   }
 
