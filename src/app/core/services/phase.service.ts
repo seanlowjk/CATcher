@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { flatMap, map, retry, tap } from 'rxjs/operators';
-import { Observable, of, pipe } from 'rxjs';
+import { Observable, of, pipe, UnaryFunction } from 'rxjs';
 import { GithubService } from './github.service';
 import { LabelService } from './label.service';
 import { UserService } from './user.service';
@@ -9,6 +9,7 @@ import { UserRole } from '../models/user.model';
 import { SessionData, assertSessionDataIntegrity } from '../models/session.model';
 import { MatDialog } from '@angular/material';
 import { SessionFixConfirmationComponent } from './session-fix-confirmation/session-fix-confirmation.component';
+import { throwIfFalse } from '../../shared/lib/custom-ops';
 
 export enum Phase {
   phaseBugReporting = 'phaseBugReporting',
@@ -23,6 +24,8 @@ export const PhaseDescription = {
   [Phase.phaseTesterResponse]: 'Tester\'s Response Phase',
   [Phase.phaseModeration]: 'Moderation Phase'
 };
+
+export const SESSION_AVALIABILITY_FIX_FAILED = 'Session Availability Fix failed.';
 
 @Injectable({
   providedIn: 'root',
@@ -162,6 +165,7 @@ export class PhaseService {
   sessionSetup(): Observable<any> {
     // Permission Caching Mechanism to prevent repeating permission request.
     let isSessionFixPermissionGranted = false;
+    console.log(1234567890);
     const cacheSessionFixPermission = () => {
       return pipe(
         tap((sessionFixPermission: boolean | null) => {
@@ -206,13 +210,16 @@ export class PhaseService {
           return this.verifySessionAvailability(this.sessionData);
         }
       }),
-      flatMap((isSessionCreated: boolean) => {
-        if (!isSessionCreated) {
-          throw new Error('Session Availability Fix failed.');
-        }
-        return this.labelService.synchronizeRemoteLabels();
-      }),
+      this.syncLabels(),
       retry(1)  // Retry once, to handle edge case where GitHub API cannot immediately confirm existence of the newly created repo.
+    );
+  }
+
+  public syncLabels(): UnaryFunction<Observable<boolean>, Observable<any>> {
+    return pipe(
+      throwIfFalse((isSessionCreated: boolean) => isSessionCreated,
+        () => new Error(SESSION_AVALIABILITY_FIX_FAILED)),
+      map(() => this.labelService.synchronizeRemoteLabels())
     );
   }
 
