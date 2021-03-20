@@ -16,7 +16,7 @@ describe('LabelDropdownComponent', () => {
 
     const formGroup: FormGroup = new FormBuilder().group({
       title: ['', Validators.required],
-      description: ['No details provided.'],
+      description: [''],
       severity: ['', Validators.required],
       type: ['', Validators.required]
     });
